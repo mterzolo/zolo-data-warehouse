@@ -1,13 +1,14 @@
 import pandas as pd
 import numpy as np
-import datetime as dt
 import re
+import datetime as dt
 
 from squareconnect.apis.v1_transactions_api import V1TransactionsApi
 from squareconnect.rest import ApiException
 
 from sqlalchemy import create_engine
 import yaml
+import logging
 
 # Load config file
 with open("../config.yml", 'r') as ymlfile:
@@ -18,12 +19,15 @@ today = dt.datetime.today().strftime('%Y-%m-%d')
 week_ago = dt.datetime.today() - dt.timedelta(7)
 week_ago = week_ago.strftime('%Y-%m-%d')
 
+logging.info('date_range for this ETL: {} - {}'.format(week_ago, today))
 
 def main():
     """
     Main entry point for the code
     :return:
     """
+
+    logging.basicConfig(level=logging.INFO)
 
     payments = extract(week_ago, today)
     data_trans = transform(payments)
@@ -35,6 +39,8 @@ def extract(start_date, end_date):
     Pull data from the square API
     :return: JSON response with orders in the date_range provided
     """
+
+    logging.info('Begin Extract')
 
     # Create an instance of the Location API class
     api_instance = V1TransactionsApi()
@@ -68,6 +74,8 @@ def extract(start_date, end_date):
     except ApiException as e:
         print('Exception when calling V1TransactionsApi->list_payments: %s\n' % e)
 
+    logging.info('Data Extraction completed successfully')
+
     return payments
 
 
@@ -76,6 +84,8 @@ def transform(payments):
     Takes the response from the API and prepares it to be loaded into the data warehouse
     :return:
     """
+
+    logging.info('Begin data transformation')
 
     # Unpack array
     payments_dfs = []
@@ -95,6 +105,12 @@ def transform(payments):
             sku = [i['item_detail']['sku'] for i in batch_dict['itemizations']]
             category_name = [i['item_detail']['category_name'] for i in batch_dict['itemizations']]
             dollars = [int(i['total_money']['amount']) / 100 for i in batch_dict['itemizations']]
+            try:
+                tendered_cash = int(batch_dict['tender'][0]['tendered_money']['amount']) / 100
+                returned_cash = int(batch_dict['tender'][0]['change_back_money']['amount']) / 100
+            except TypeError:
+                tendered_cash = np.nan
+                returned_cash = np.nan
 
             # Create dataframe for the row(s)
             temp_df = pd.DataFrame({
@@ -105,7 +121,9 @@ def transform(payments):
                 'quantity': quantity,
                 'sku': sku,
                 'category_name': category_name,
-                'dollars': dollars
+                'dollars': dollars,
+                'tendered_cash': tendered_cash,
+                'returned_cash': returned_cash
             })
 
             payments_dfs.append(temp_df)
@@ -116,6 +134,19 @@ def transform(payments):
     data['created_at'] = pd.to_datetime(data['created_at'])
     data['date_rounded'] = data['created_at'] - pd.to_timedelta(data['created_at'].dt.dayofweek, unit='d')
     data['date_rounded'] = data['date_rounded'].dt.date
+    data['time'] = data['created_at'].dt.time
+
+    # Get day of week and first transaction of the day
+    data['DOW'] = data['created_at'].dt.dayofweek
+    data['first_trans'] = data.groupby(['created_at', 'device_name'])['time'].transform('min')
+
+    # Determine Market
+    data['market'] = np.where(data['DOW'] == 3, 'San Rafael Thurs', 'other')
+    data['market'] = np.where(data['DOW'] == 5, 'Danville Farmers Market', data['market'])
+    data['market'] = np.where((data['DOW'] == 6) &
+                              (data['first_trans'] < dt.time(7)), 'Alameda Antique Faire', data['market'])
+    data['market'] = np.where((data['DOW'] == 6) &
+                              (data['first_trans'] > dt.time(7)), 'San Rafael Sunday', data['market'])
 
     # Clean up names and filter irrelevant data
     data['name_clean'] = np.where(data['product_name'].isin(['Mamazolo Classic Espresso Roast',
@@ -189,10 +220,25 @@ def transform(payments):
     data['weight'] = np.where(data['category_name'] == 'Roasted Coffee',
                               data['quantity'] * .75,
                               data['quantity'] * 0.0661387)
-    data['type'] = np.where(data['category_name'] == 'Roasted Coffee', 'bags', 'loose')
+    data['form'] = np.where(data['category_name'] == 'Roasted Coffee', 'bags', 'loose')
 
-    # Aggregate and save to disk
-    data_trans = data.groupby(['date_rounded', 'name_clean', 'type']).sum()['weight'].reset_index()
+    # Select relevant columns
+    data_trans = data.loc[:, [
+       'payment_id',
+       'created_at',
+       'device_name',
+       'quantity',
+       'sku',
+       'category_name',
+       'dollars',
+       'tendered_cash',
+       'returned_cash',
+       'market',
+       'name_clean',
+       'weight',
+       'form']]
+
+    logging.info('Data transformation completed successfully')
 
     return data_trans
 
@@ -204,6 +250,8 @@ def load(data_trans):
     :return:
     """
 
+    logging.info('Begin data load')
+
     # Create connection engine
     engine = create_engine('postgresql://{}:{}@{}/{}'.format(cfg['db_user_name'],
                                                              cfg['db_password'],
@@ -212,6 +260,8 @@ def load(data_trans):
 
     # Load to database
     data_trans.to_sql('square_transactions', con=engine, if_exists='append', index=False)
+
+    logging.info('Data load completed successfully')
 
 
 # Main section
