@@ -1,0 +1,6 @@
+pip install numpy
+pip install pandas
+pip install pyschopg2
+pip install sqlalchemy
+pip install git+https://github.com/square/connect-python-sdk.git
+pip install pyyaml
