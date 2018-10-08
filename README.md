@@ -17,7 +17,6 @@ Scripts for creating and maintaining a data warehouse for a coffee roasting comp
 # TODO
 * Define items table and allocate SKU's that work across square, quickbooks, and shopify
 * Connect to quickbooks API
-* Connect Metabase
 * Load historical data to database
 * Create load scripts for daily refreshes of the data
 * Set up airflow to run ETL scripts
@@ -30,3 +29,6 @@ Continuously monitor sales at the farmer's market and forecast out sales in the 
 
 ### Weekly Roast Schedule
 Predict demand of roasted coffee for the week to reduce spoilage (When we roast too much coffee) and out-of-stock (When we don't roast enough coffee. Once the database is connecting we will understand our baseline spoilage / out-of-stock rates and seek to lower them using statistical models.
+
+### How much Cash in the Stash
+Each farmers' market needs cash in the register to return change to customers. Look at historical data to minimize how much cash we need to put in the register, while ensuring that we don't run out of any small bills throughout the day.
