@@ -1,6 +1,6 @@
-pip install numpy
-pip install pandas
-pip install pyschopg2
-pip install sqlalchemy
-pip install git+https://github.com/square/connect-python-sdk.git
-pip install pyyaml
+squareconnect==2.20180918.0
+numpy==1.15.2
+pandas==0.23.4
+psycopg2==2.7.5
+SQLAlchemy==1.2.12
+PyYAML==3.13
