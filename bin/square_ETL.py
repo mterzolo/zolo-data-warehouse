@@ -1,25 +1,23 @@
-import pandas as pd
-import numpy as np
 import re
-import datetime as dt
-
-from squareconnect.apis.v1_transactions_api import V1TransactionsApi
-from squareconnect.rest import ApiException
-
-from sqlalchemy import create_engine
 import yaml
 import logging
+import warnings
+import pandas as pd
+import numpy as np
+import datetime as dt
+from squareconnect.apis.v1_transactions_api import V1TransactionsApi
+from squareconnect.rest import ApiException
+from sqlalchemy import create_engine
+
+# Ignore warnings
+warnings.filterwarnings("ignore")
 
 # Load config file
 with open("../config.yml", 'r') as ymlfile:
     cfg = yaml.load(ymlfile)
 
-# Get start and end dates
-today = dt.datetime.today().strftime('%Y-%m-%d')
-week_ago = dt.datetime.today() - dt.timedelta(7)
-week_ago = week_ago.strftime('%Y-%m-%d')
 
-logging.info('date_range for this ETL: {} - {}'.format(week_ago, today))
+
 
 def main():
     """
@@ -27,11 +25,23 @@ def main():
     :return:
     """
 
-    logging.basicConfig(level=logging.INFO)
+    logging.getLogger().setLevel(level=logging.INFO)
 
-    payments = extract(week_ago, today)
-    data_trans = transform(payments)
-    load(data_trans)
+    # Get start and end dates
+    # end_date = dt.datetime.today().strftime('%Y-%m-%d')
+    # start_date = dt.datetime.today() - dt.timedelta(7)
+    # start_date = start_date.strftime('%Y-%m-%d')
+
+    for date in pd.date_range(start='2013-01-07', end='2018-09-29', freq='W'):
+
+        start_date = date.strftime('%Y-%m-%d')
+        end_date = (date + dt.timedelta(7)).strftime('%Y-%m-%d')
+
+        logging.info('date_range for this ETL: {} - {}'.format(start_date, end_date))
+
+        payments = extract(start_date, end_date)
+        trans_dfs = transform(payments)
+        load(trans_dfs)
 
 
 def extract(start_date, end_date):
@@ -128,7 +138,21 @@ def transform(payments):
 
             payments_dfs.append(temp_df)
 
-    data = pd.concat(payments_dfs).reset_index(drop=True)
+    try:
+        data = pd.concat(payments_dfs).reset_index(drop=True)
+    except ValueError:
+        data = pd.DataFrame(columns=[
+            'payment_id',
+            'created_at',
+            'device_name',
+            'product_name',
+            'quantity',
+            'sku',
+            'category_name',
+            'dollars',
+            'tendered_cash',
+            'returned_cash'
+        ])
 
     # Clean up date field
     data['created_at'] = pd.to_datetime(data['created_at'])
@@ -173,6 +197,7 @@ def transform(payments):
     # Map drinks to coffees
     coffee_map = {
         'Americano': "Mamazolo's Classic Espresso Roast",
+        'Avocado, Tomatoes, Cheddar & Eggs': 'food',
         'Cafe au Lait': 'Farmhouse French',
         'Cappuccino': "Mamazolo's Classic Espresso Roast",
         'Cappuccino-F': "Mamazolo's Classic Espresso Roast",
@@ -181,31 +206,43 @@ def transform(payments):
         'Espresso Shot': "Mamazolo's Classic Espresso Roast",
         'Espresso Shot-F': "Mamazolo's Classic Espresso Roast",
         'Ethiopia Natural Fuafuante': 'Ethiopian Banko Fuafuate',
+        'Ethiopia Guji Lot 003': 'Ethiopia Guji Lot 003',
+        'Ethiopia Konga Kebele': 'Ethiopia Konga Kebele',
+        'Ethiopia Natural Gedeb': 'Ethiopia Natural Gedeb',
+        'Ethiopian DP Yirgacheffe Aricha': 'Ethiopian DP Yirgacheffe Aricha',
+        'Ethiopian DP Yirgacheffe Gedeo Worka': 'Ethiopian DP Yirgacheffe Gedeo Worka',
         'Extra Shot Espresso': "Mamazolo's Classic Espresso Roast",
         'Fancy Latte': "Mamazolo's Classic Espresso Roast",
         'Farmhouse French': 'Farmhouse French',
         'Farmhouse French ICED': 'Farmhouse French',
         'Farmhouse French Iced Coffee': 'Farmhouse French',
         'Fast Farmhouse': 'Farmhouse French',
+        'Hot Chocolate': 'Hot Chocolate',
         'Iced Coffee Medium Roast': 'Little Dog',
+        'Iced/Hot Tea': 'Iced/Hot Tea',
         'Iced Espresso': "Mamazolo's Classic Espresso Roast",
         'Latte': "Mamazolo's Classic Espresso Roast",
         'Latte-F': "Mamazolo's Classic Espresso Roast",
+        'LARGE SIZE': 'LARGE SIZE',
         'Little Dog': 'Little Dog',
+        "Mamazolo's Classic Espresso Roast": "Mamazolo's Classic Espresso Roast",
         'Macchiato': "Mamazolo's Classic Espresso Roast",
         'Mocha': "Mamazolo's Classic Espresso Roast",
         'Monkey See Monkey Do': 'Monkey See Monkey Do',
         'New Orleans Style Iced Coffee': 'Farmhouse French',
         'Nitro Cold Brew': 'Farmhouse French',
         'Ocho Estrellas': 'Ocho Estrellas',
+        'Porchetta & Eggs': 'food',
         'Red Eye': "Mamazolo's Classic Espresso Roast",
-        'Vita Bella Decaf': 'Vita Bella Decaf'
+        'Refill Drip': 'Refill Drip',
+        'Seasonal Toast': 'food',
+        'Steamer': 'Steamer',
+        'Sweet Toast': 'food',
+        'Vanilla/Almond/Soy Add': 'Vanilla/Almond/Soy Add',
+        'Vita Bella Decaf': 'Vita Bella Decaf',
+        'Vita Bella': 'Vita Bella Decaf'
     }
     data['name_clean'] = data['product_name'].map(coffee_map)
-
-    # Filter out irrelvant coffees
-    data = data[data['name_clean'] != 'other']
-    data = data[data['name_clean'].notnull()]
 
     # Impute missing decaf data for milk drinks
     data_decaf_milk = data[data['category_name'] == 'Milk Drinks']
@@ -223,29 +260,33 @@ def transform(payments):
     data['form'] = np.where(data['category_name'] == 'Roasted Coffee', 'bags', 'loose')
 
     # Select relevant columns
-    data_trans = data.loc[:, [
+    data_trans_details = data.loc[:, [
        'payment_id',
-       'created_at',
-       'device_name',
-       'quantity',
-       'sku',
-       'category_name',
-       'dollars',
-       'tendered_cash',
-       'returned_cash',
-       'market',
        'name_clean',
+       'category_name',
+       'form',
+       'quantity',
+       'dollars',
        'weight',
-       'form']]
+       ]]
+
+    agg_dict = {
+        'dollars':'sum',
+        'tendered_cash':'min',
+        'returned_cash':'min',
+    }
+
+    data_trans = data.groupby(['payment_id', 'created_at', 'market']).agg(agg_dict).reset_index()
 
     logging.info('Data transformation completed successfully')
 
-    return data_trans
+    return data_trans_details, data_trans
 
 
-def load(data_trans):
+def load(trans_dfs):
     """
     Take the transformed data and load to database
+    :param data_trans_details:
     :param data_trans:
     :return:
     """
@@ -259,7 +300,8 @@ def load(data_trans):
                                                              cfg['db_name']))
 
     # Load to database
-    data_trans.to_sql('square_transactions', con=engine, if_exists='append', index=False)
+    trans_dfs[0].to_sql('square_trans_details', con=engine, if_exists='append', index=False)
+    trans_dfs[1].to_sql('square_trans', con=engine, if_exists='append', index=False)
 
     logging.info('Data load completed successfully')
 
