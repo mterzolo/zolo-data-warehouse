@@ -17,8 +17,6 @@ with open("../config.yml", 'r') as ymlfile:
     cfg = yaml.load(ymlfile)
 
 
-
-
 def main():
     """
     Main entry point for the code
@@ -28,20 +26,20 @@ def main():
     logging.getLogger().setLevel(level=logging.INFO)
 
     # Get start and end dates
-    # end_date = dt.datetime.today().strftime('%Y-%m-%d')
-    # start_date = dt.datetime.today() - dt.timedelta(7)
-    # start_date = start_date.strftime('%Y-%m-%d')
+    end_date = dt.datetime.today().isoformat()
+    start_date = cfg['last_update']
 
-    for date in pd.date_range(start='2013-01-07', end='2018-09-29', freq='W'):
+    logging.info('date_range for this ETL: {} - {}'.format(start_date, end_date))
 
-        start_date = date.strftime('%Y-%m-%d')
-        end_date = (date + dt.timedelta(7)).strftime('%Y-%m-%d')
+    # Run ETL
+    payments = extract(start_date, end_date)
+    trans_dfs = transform(payments)
+    load(trans_dfs)
 
-        logging.info('date_range for this ETL: {} - {}'.format(start_date, end_date))
-
-        payments = extract(start_date, end_date)
-        trans_dfs = transform(payments)
-        load(trans_dfs)
+    # Update config file with last_update
+    cfg['last_update'] = end_date
+    with open('../config.yml', 'w') as outfile:
+        yaml.dump(cfg, outfile, default_flow_style=False)
 
 
 def extract(start_date, end_date):
@@ -259,7 +257,7 @@ def transform(payments):
                               data['quantity'] * 0.0661387)
     data['form'] = np.where(data['category_name'] == 'Roasted Coffee', 'bags', 'loose')
 
-    # Select relevant columns
+    # Create transactions details table
     data_trans_details = data.loc[:, [
        'payment_id',
        'name_clean',
@@ -270,12 +268,12 @@ def transform(payments):
        'weight',
        ]]
 
+    # Create transactions table
     agg_dict = {
         'dollars':'sum',
         'tendered_cash':'min',
         'returned_cash':'min',
     }
-
     data_trans = data.groupby(['payment_id', 'created_at', 'market']).agg(agg_dict).reset_index()
 
     logging.info('Data transformation completed successfully')
@@ -286,8 +284,7 @@ def transform(payments):
 def load(trans_dfs):
     """
     Take the transformed data and load to database
-    :param data_trans_details:
-    :param data_trans:
+    :param trans_dfs: tuple of dataframes
     :return:
     """
 
