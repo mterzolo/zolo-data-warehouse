@@ -13,8 +13,8 @@ from sqlalchemy import create_engine
 warnings.filterwarnings("ignore")
 
 # Load config file
-with open("../config.yml", 'r') as ymlfile:
-    cfg = yaml.load(ymlfile)
+with open("../config.yml", 'r') as infile:
+    cfg = yaml.load(infile)
 
 
 def main():
@@ -160,7 +160,7 @@ def transform(payments):
 
     # Get day of week and first transaction of the day
     data['DOW'] = data['created_at'].dt.dayofweek
-    data['first_trans'] = data.groupby(['created_at', 'device_name'])['time'].transform('min')
+    data['first_trans'] = data.groupby(['date_rounded', 'device_name'])['time'].transform('min')
 
     # Determine Market
     data['market'] = np.where(data['DOW'] == 3, 'San Rafael Thurs', 'other')
