@@ -14,8 +14,6 @@ conn = psycopg2.connect("host={} dbname={} user={} password={}".format(cfg['db_I
 # Create table
 cur = conn.cursor()
 cur.execute("""
-DROP TABLE IF EXISTS square_transactions;
-
 DROP TABLE IF EXISTS square_trans;
 
 CREATE TABLE square_trans(
@@ -28,14 +26,12 @@ CREATE TABLE square_trans(
 );
 
 DROP TABLE IF EXISTS square_trans_details;
+
 CREATE TABLE square_trans_details(
     payment_id text,
-    name_clean text,
-    category_name text,
-    form text,
+    sku text,
     quantity int,
-    dollars float,
-    weight float
+    dollars float
 );
 """)
 conn.commit()
