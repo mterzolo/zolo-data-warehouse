@@ -125,10 +125,8 @@ def transform(payments):
             payment_id = batch_dict['id']
             created_at = batch_dict['created_at']
             device_name = batch_dict['device']['name']
-            product_name = [i['name'] for i in batch_dict['itemizations']]
             quantity = [i['quantity'] for i in batch_dict['itemizations']]
             sku = [i['item_detail']['sku'] for i in batch_dict['itemizations']]
-            category_name = [i['item_detail']['category_name'] for i in batch_dict['itemizations']]
             dollars = [int(i['total_money']['amount']) / 100 for i in batch_dict['itemizations']]
             try:
                 tendered_cash = int(batch_dict['tender'][0]['tendered_money']['amount']) / 100
@@ -142,10 +140,8 @@ def transform(payments):
                 'payment_id': payment_id,
                 'created_at': created_at,
                 'device_name': device_name,
-                'product_name': product_name,
                 'quantity': quantity,
                 'sku': sku,
-                'category_name': category_name,
                 'dollars': dollars,
                 'tendered_cash': tendered_cash,
                 'returned_cash': returned_cash
@@ -160,10 +156,8 @@ def transform(payments):
             'payment_id',
             'created_at',
             'device_name',
-            'product_name',
             'quantity',
             'sku',
-            'category_name',
             'dollars',
             'tendered_cash',
             'returned_cash'
@@ -187,102 +181,12 @@ def transform(payments):
     data['market'] = np.where((data['DOW'] == 6) &
                               (data['first_trans'] > dt.time(7)), 'San Rafael Sunday', data['market'])
 
-    # Clean up names and filter irrelevant data
-    data['name_clean'] = np.where(data['product_name'].isin(['Mamazolo Classic Espresso Roast',
-                                                             "Mamazolo's Classic Espresso Roast"]),
-                                  "Mamazolo's Classic Espresso Roast",
-                                  'other')
-    data['name_clean'] = np.where(data['product_name'].isin(['Ethiopia Guji Lot 003',
-                                                             'Ethiopia Konga Kebele',
-                                                             'Ethiopia Natural Gedeb',
-                                                             'Ethiopian DP Yirgacheffe Aricha',
-                                                             'Ethiopian DP Yirgacheffe Gedeo Worka']),
-                                  'Ethiopian Banko Fuafuate',
-                                  data['name_clean'])
-    data['name_clean'] = np.where(data['product_name'].isin(['Vita Bella', 'Vita Bella Decaf']),
-                                  'Vita Bella Decaf',
-                                  data['name_clean'])
-    data['name_clean'] = np.where(data['product_name'].isin(['Little Dog',
-                                                             'Monkey See Monkey Do',
-                                                             'Ocho Estrellas',
-                                                             'Farmhouse French']),
-                                  data['product_name'],
-                                  data['name_clean'])
-
-    # Map drinks to coffees
-    coffee_map = {
-        'Americano': "Mamazolo's Classic Espresso Roast",
-        'Avocado, Tomatoes, Cheddar & Eggs': 'food',
-        'Cafe au Lait': 'Farmhouse French',
-        'Cappuccino': "Mamazolo's Classic Espresso Roast",
-        'Cappuccino-F': "Mamazolo's Classic Espresso Roast",
-        'Cappucino': "Mamazolo's Classic Espresso Roast",
-        'Cold Brew Iced Coffee': 'Farmhouse French',
-        'Espresso Shot': "Mamazolo's Classic Espresso Roast",
-        'Espresso Shot-F': "Mamazolo's Classic Espresso Roast",
-        'Ethiopia Natural Fuafuante': 'Ethiopian Banko Fuafuate',
-        'Ethiopia Guji Lot 003': 'Ethiopia Guji Lot 003',
-        'Ethiopia Konga Kebele': 'Ethiopia Konga Kebele',
-        'Ethiopia Natural Gedeb': 'Ethiopia Natural Gedeb',
-        'Ethiopian DP Yirgacheffe Aricha': 'Ethiopian DP Yirgacheffe Aricha',
-        'Ethiopian DP Yirgacheffe Gedeo Worka': 'Ethiopian DP Yirgacheffe Gedeo Worka',
-        'Extra Shot Espresso': "Mamazolo's Classic Espresso Roast",
-        'Fancy Latte': "Mamazolo's Classic Espresso Roast",
-        'Farmhouse French': 'Farmhouse French',
-        'Farmhouse French ICED': 'Farmhouse French',
-        'Farmhouse French Iced Coffee': 'Farmhouse French',
-        'Fast Farmhouse': 'Farmhouse French',
-        'Hot Chocolate': 'Hot Chocolate',
-        'Iced Coffee Medium Roast': 'Little Dog',
-        'Iced/Hot Tea': 'Iced/Hot Tea',
-        'Iced Espresso': "Mamazolo's Classic Espresso Roast",
-        'Latte': "Mamazolo's Classic Espresso Roast",
-        'Latte-F': "Mamazolo's Classic Espresso Roast",
-        'LARGE SIZE': 'LARGE SIZE',
-        'Little Dog': 'Little Dog',
-        "Mamazolo's Classic Espresso Roast": "Mamazolo's Classic Espresso Roast",
-        'Macchiato': "Mamazolo's Classic Espresso Roast",
-        'Mocha': "Mamazolo's Classic Espresso Roast",
-        'Monkey See Monkey Do': 'Monkey See Monkey Do',
-        'New Orleans Style Iced Coffee': 'Farmhouse French',
-        'Nitro Cold Brew': 'Farmhouse French',
-        'Ocho Estrellas': 'Ocho Estrellas',
-        'Porchetta & Eggs': 'food',
-        'Red Eye': "Mamazolo's Classic Espresso Roast",
-        'Refill Drip': 'Refill Drip',
-        'Seasonal Toast': 'food',
-        'Steamer': 'Steamer',
-        'Sweet Toast': 'food',
-        'Vanilla/Almond/Soy Add': 'Vanilla/Almond/Soy Add',
-        'Vita Bella Decaf': 'Vita Bella Decaf',
-        'Vita Bella': 'Vita Bella Decaf'
-    }
-    data['name_clean'] = data['product_name'].map(coffee_map)
-
-    # Impute missing decaf data for milk drinks
-    data_decaf_milk = data[data['category_name'] == 'Milk Drinks']
-    data_decaf_milk['quantity'] = .05
-    data_decaf_milk['name_clean'] = 'Vita Bella Decaf'
-
-    # Union back to original dataset
-    data['quantity'] = np.where(data['category_name'] == 'Milk Drinks', .95, data['quantity'])
-    data = pd.concat((data, data_decaf_milk), axis=0)
-
-    # Calc weight (assume 30 grams per drink)
-    data['weight'] = np.where(data['category_name'] == 'Roasted Coffee',
-                              data['quantity'] * .75,
-                              data['quantity'] * 0.0661387)
-    data['form'] = np.where(data['category_name'] == 'Roasted Coffee', 'bags', 'loose')
-
     # Create transactions details table
     data_trans_details = data.loc[:, [
        'payment_id',
-       'name_clean',
-       'category_name',
-       'form',
+       'sku',
        'quantity',
        'dollars',
-       'weight',
        ]]
 
     # Create transactions table
