@@ -9,6 +9,7 @@ from squareconnect.apis.v1_transactions_api import V1TransactionsApi
 from squareconnect.rest import ApiException
 from sqlalchemy import create_engine
 
+
 # Ignore warnings
 warnings.filterwarnings("ignore")
 
@@ -16,6 +17,24 @@ warnings.filterwarnings("ignore")
 with open("../config.yml", 'r') as infile:
     cfg = yaml.load(infile)
 
+# Get start and end dates
+end_date = dt.datetime.today().isoformat()
+start_date = cfg['last_update']
+
+# Create logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# create a file handler
+handler = logging.FileHandler('../logs/{}.log'.format(end_date))
+handler.setLevel(logging.INFO)
+
+# create a logging format
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+
+# add the handlers to the logger
+logger.addHandler(handler)
 
 def main():
     """
@@ -23,13 +42,11 @@ def main():
     :return:
     """
 
-    logging.getLogger().setLevel(level=logging.INFO)
-
     # Get start and end dates
     end_date = dt.datetime.today().isoformat()
     start_date = cfg['last_update']
 
-    logging.info('date_range for this ETL: {} - {}'.format(start_date, end_date))
+    logger.info('date_range for this ETL: {} - {}'.format(start_date, end_date))
 
     # Run ETL
     payments = extract(start_date, end_date)
@@ -48,7 +65,7 @@ def extract(start_date, end_date):
     :return: JSON response with orders in the date_range provided
     """
 
-    logging.info('Begin Extract')
+    logger.info('Begin Extract')
 
     # Create an instance of the Location API class
     api_instance = V1TransactionsApi()
@@ -82,7 +99,7 @@ def extract(start_date, end_date):
     except ApiException as e:
         print('Exception when calling V1TransactionsApi->list_payments: %s\n' % e)
 
-    logging.info('Data Extraction completed successfully')
+    logger.info('Data Extraction completed successfully')
 
     return payments
 
@@ -93,7 +110,7 @@ def transform(payments):
     :return:
     """
 
-    logging.info('Begin data transformation')
+    logger.info('Begin data transformation')
 
     # Unpack array
     payments_dfs = []
@@ -276,7 +293,7 @@ def transform(payments):
     }
     data_trans = data.groupby(['payment_id', 'created_at', 'market']).agg(agg_dict).reset_index()
 
-    logging.info('Data transformation completed successfully')
+    logger.info('Data transformation completed successfully')
 
     return data_trans_details, data_trans
 
@@ -288,7 +305,7 @@ def load(trans_dfs):
     :return:
     """
 
-    logging.info('Begin data load')
+    logger.info('Begin data load')
 
     # Create connection engine
     engine = create_engine('postgresql://{}:{}@{}/{}'.format(cfg['db_user_name'],
@@ -300,7 +317,7 @@ def load(trans_dfs):
     trans_dfs[0].to_sql('square_trans_details', con=engine, if_exists='append', index=False)
     trans_dfs[1].to_sql('square_trans', con=engine, if_exists='append', index=False)
 
-    logging.info('Data load completed successfully')
+    logger.info('Data load completed successfully')
 
 
 # Main section
