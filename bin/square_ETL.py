@@ -165,13 +165,13 @@ def transform(payments):
 
     # Clean up date field
     data['created_at'] = pd.to_datetime(data['created_at'])
-    data['date_rounded'] = data['created_at'] - pd.to_timedelta(data['created_at'].dt.dayofweek, unit='d')
-    data['date_rounded'] = data['date_rounded'].dt.date
+    data['created_at'] = data['created_at'] - dt.timedelta(hours=7)
+    data['date'] = data['created_at'].dt.date
     data['time'] = data['created_at'].dt.time
 
     # Get day of week and first transaction of the day
     data['DOW'] = data['created_at'].dt.dayofweek
-    data['first_trans'] = data.groupby(['date_rounded', 'device_name'])['time'].transform('min')
+    data['first_trans'] = data.groupby(['date', 'device_name'])['time'].transform('min')
 
     # Determine Market
     data['market'] = np.where(data['DOW'] == 3, 'San Rafael Thurs', 'other')
