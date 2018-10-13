@@ -50,8 +50,8 @@ cur.execute("""
 conn.commit()
 
 # Load data
-square_items = pd.read_csv('../data/square_items.csv')
-coffee_profiles = pd.read_csv('../data/coffee_profiles.csv')
+square_items = pd.read_csv('../data/ref_tables - square_items.csv')
+coffee_profiles = pd.read_csv('../data/ref_tables - coffee_profiles.csv')
 
 # Create connection engine
 engine = create_engine('postgresql://{}:{}@{}/{}'.format(cfg['db_user_name'],
@@ -61,4 +61,4 @@ engine = create_engine('postgresql://{}:{}@{}/{}'.format(cfg['db_user_name'],
 
 # Load to database
 square_items.to_sql('square_items', con=engine, if_exists='replace', index=False)
-coffee_profiles.to_sql('square_items', con=engine, if_exists='replace', index=False)
+coffee_profiles.to_sql('coffee_profiles', con=engine, if_exists='replace', index=False)
