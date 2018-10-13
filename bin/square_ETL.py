@@ -134,7 +134,7 @@ def transform(payments):
                 tendered_cash = np.nan
                 returned_cash = np.nan
             try:
-                modifiers = [';'.join(i['modifiers']) for i in batch_dict['itemizations']]
+                modifiers = [';'.join(j['name'] for j in i['modifiers']) for i in batch_dict['itemizations']]
             except TypeError:
                 modifiers = np.nan
 
