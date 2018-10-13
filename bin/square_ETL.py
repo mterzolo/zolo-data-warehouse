@@ -43,7 +43,7 @@ def main():
     """
 
     # Get start and end dates
-    end_date = dt.datetime.today().isoformat()
+    end_date = dt.datetime.utcnow().isoformat()
     start_date = cfg['last_update']
 
     logger.info('date_range for this ETL: {} - {}'.format(start_date, end_date))
@@ -97,7 +97,7 @@ def extract(start_date, end_date):
                 has_next_page = None
                 batch_token = None
     except ApiException as e:
-        print('Exception when calling V1TransactionsApi->list_payments: %s\n' % e)
+        logger.debug('Exception when calling V1TransactionsApi->list_payments: %s\n' % e)
 
     logger.info('Data Extraction completed successfully')
 
@@ -128,12 +128,18 @@ def transform(payments):
             quantity = [i['quantity'] for i in batch_dict['itemizations']]
             sku = [i['item_detail']['sku'] for i in batch_dict['itemizations']]
             dollars = [int(i['total_money']['amount']) / 100 for i in batch_dict['itemizations']]
+            variation_name =[i['item_variation_name'] for i in batch_dict['itemizations']]
+
             try:
                 tendered_cash = int(batch_dict['tender'][0]['tendered_money']['amount']) / 100
                 returned_cash = int(batch_dict['tender'][0]['change_back_money']['amount']) / 100
             except TypeError:
                 tendered_cash = np.nan
                 returned_cash = np.nan
+            try:
+                modifiers = [';'.join(i['modifiers']) for i in batch_dict['itemizations']]
+            except TypeError:
+                modifiers = np.nan
 
             # Create dataframe for the row(s)
             temp_df = pd.DataFrame({
@@ -144,7 +150,9 @@ def transform(payments):
                 'sku': sku,
                 'dollars': dollars,
                 'tendered_cash': tendered_cash,
-                'returned_cash': returned_cash
+                'returned_cash': returned_cash,
+                'modifiers': modifiers,
+                'variation_name': variation_name
             })
 
             payments_dfs.append(temp_df)
@@ -160,7 +168,9 @@ def transform(payments):
             'sku',
             'dollars',
             'tendered_cash',
-            'returned_cash'
+            'returned_cash',
+            'modifiers',
+            'variation_name'
         ])
 
     # Clean up date field
@@ -173,7 +183,7 @@ def transform(payments):
     data['DOW'] = data['created_at'].dt.dayofweek
     data['first_trans'] = data.groupby(['date', 'device_name'])['time'].transform('min')
 
-    # Determine Market
+    # Determine market
     data['market'] = np.where(data['DOW'] == 3, 'San Rafael Thurs', 'other')
     data['market'] = np.where(data['DOW'] == 5, 'Danville Farmers Market', data['market'])
     data['market'] = np.where((data['DOW'] == 6) &

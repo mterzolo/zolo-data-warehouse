@@ -18,7 +18,7 @@ DROP TABLE IF EXISTS square_trans;
 
 CREATE TABLE square_trans(
     payment_id text,
-    created_at date,
+    created_at timestamp,
     market text,
     dollars float,
     tendered_cash float,
@@ -31,7 +31,9 @@ CREATE TABLE square_trans_details(
     payment_id text,
     sku text,
     quantity int,
-    dollars float
+    dollars float,
+    modifiers text,
+    variation_name text
 );
 """)
 conn.commit()
