@@ -18,7 +18,7 @@ with open("../config.yml", 'r') as infile:
     cfg = yaml.load(infile)
 
 # Get start and end dates
-end_date = dt.datetime.today().isoformat()
+end_date = dt.datetime.utcnow().isoformat()
 start_date = cfg['last_update']
 
 # Create logger
@@ -36,15 +36,12 @@ handler.setFormatter(formatter)
 # add the handlers to the logger
 logger.addHandler(handler)
 
+
 def main():
     """
     Main entry point for the code
     :return:
     """
-
-    # Get start and end dates
-    end_date = dt.datetime.utcnow().isoformat()
-    start_date = cfg['last_update']
 
     logger.info('date_range for this ETL: {} - {}'.format(start_date, end_date))
 
@@ -197,6 +194,9 @@ def transform(payments):
        'sku',
        'quantity',
        'dollars',
+       'modifiers',
+       'variation_name'
+
        ]]
 
     # Create transactions table
