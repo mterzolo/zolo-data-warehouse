@@ -135,8 +135,10 @@ def transform(orders):
     try:
         data = pd.concat(orders_dfs)
     except ValueError:
-        data = pd.DataFrame(columns = [
+        data = pd.DataFrame(columns=[
+
             'order_id',
+            'created_at',
             'product_name',
             'quantity',
             'sku',
@@ -151,14 +153,20 @@ def transform(orders):
     data['total_price'] = data['quantity'] * data['price']
 
     # Create the shopify transactions table
-    shopify_trans = data.groupby(['order_id', 'created_at']).min().reset_index()
+    # Create transactions table
+    agg_dict = {
+        'shipping_price': 'min',
+        'total_price': 'min',
+    }
+
+    shopify_trans = data.groupby(['order_id', 'created_at']).agg(agg_dict).reset_index()
     shopify_trans = shopify_trans.loc[:, [
 
         'order_id',
         'created_at',
         'shipping_price',
         'total_price'
-                                         ]]
+    ]]
 
     # Create the shopify transaction details table
     shopify_details = data.loc[:, [
@@ -167,7 +175,7 @@ def transform(orders):
         'sku',
         'quantity',
         'price'
-                                  ]]
+    ]]
 
     logger.info('Data transformation completed successfully')
 
