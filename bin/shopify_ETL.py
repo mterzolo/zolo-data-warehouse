@@ -132,7 +132,17 @@ def transform(orders):
             orders_dfs.append(temp_df)
 
     # Union all dataframes
-    data = pd.concat(orders_dfs)
+    try:
+        data = pd.concat(orders_dfs)
+    except ValueError:
+        data = pd.DataFrame(columns = [
+            'order_id',
+            'product_name',
+            'quantity',
+            'sku',
+            'price',
+            'shipping_price'
+        ])
 
     # Transform to datetime object
     data['created_at'] = pd.to_datetime(data['created_at'])
