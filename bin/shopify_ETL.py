@@ -156,7 +156,7 @@ def transform(orders):
     # Create transactions table
     agg_dict = {
         'shipping_price': 'min',
-        'total_price': 'min',
+        'total_price': 'sum',
     }
 
     shopify_trans = data.groupby(['order_id', 'created_at']).agg(agg_dict).reset_index()
