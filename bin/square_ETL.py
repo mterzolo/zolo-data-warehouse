@@ -43,7 +43,7 @@ def main():
     :return:
     """
 
-    logger.info('date_range for this ETL: {} - {}'.format(start_date, end_date))
+    logger.info('date_range for this ETL (UTC): {} - {}'.format(start_date, end_date))
 
     # Run ETL
     payments = extract(start_date, end_date)

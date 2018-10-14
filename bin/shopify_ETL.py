@@ -43,12 +43,12 @@ def main():
     :return:
     """
 
-    logger.info('date_range for this ETL: {} - {}'.format(start_date, end_date))
+    logger.info('date_range for this ETL (UTC): {} - {}'.format(start_date, end_date))
 
     # Run ETL
     orders = extract(start_date, end_date)
     orders_dfs = transform(orders)
-    load(orders_dfs)
+    #load(orders_dfs)
 
     # Update config file with last_update
     cfg['last_update_shopify'] = end_date
@@ -115,7 +115,7 @@ def transform(orders):
             sku = [i['sku'] for i in order['line_items']]
             price = [float(i['price']) for i in order['line_items']]
             try:
-                shipping_price = [i['price'] for i in order['shipping_lines']][0]
+                shipping_price = [float(i['price']) for i in order['shipping_lines']][0]
             except IndexError:
                 shipping_price = np.nan
 
@@ -148,24 +148,29 @@ def transform(orders):
 
     # Transform to datetime object
     data['created_at'] = pd.to_datetime(data['created_at'])
+    data['created_at'] = data['created_at'] - dt.timedelta(hours=7)
 
     # Calc the total dollars for the line item
-    data['total_price'] = data['quantity'] * data['price']
+    data['subtotal'] = data['quantity'] * data['price']
+
+    print(data['sku'].value_counts())
 
     # Create the shopify transactions table
-    # Create transactions table
     agg_dict = {
         'shipping_price': 'min',
-        'total_price': 'sum',
+        'subtotal': 'sum',
     }
 
-    shopify_trans = data.groupby(['order_id', 'created_at']).agg(agg_dict).reset_index()
+    shopify_trans = data.groupby(['order_id', 'created_at', 'sku']).agg(agg_dict).reset_index()
+    shopify_trans['total_dollars'] = shopify_trans['subtotal'] + shopify_trans['shipping_price']
+
     shopify_trans = shopify_trans.loc[:, [
 
         'order_id',
         'created_at',
         'shipping_price',
-        'total_price'
+        'subtotal',
+        'total_dollars'
     ]]
 
     # Create the shopify transaction details table

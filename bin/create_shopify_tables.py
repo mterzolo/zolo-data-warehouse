@@ -20,7 +20,8 @@ CREATE TABLE shopify_trans(
     order_id text,
     created_at timestamp,
     shipping_price float,
-    total_price float
+    subtotal float,
+    total_dollars float
 
 );
 
