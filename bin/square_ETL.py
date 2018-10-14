@@ -19,14 +19,14 @@ with open("../config.yml", 'r') as infile:
 
 # Get start and end dates
 end_date = dt.datetime.utcnow().isoformat()
-start_date = cfg['last_update']
+start_date = cfg['last_update_square']
 
 # Create logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # create a file handler
-handler = logging.FileHandler('../logs/{}.log'.format(end_date))
+handler = logging.FileHandler('../logs/square_{}.log'.format(end_date))
 handler.setLevel(logging.INFO)
 
 # create a logging format
@@ -51,7 +51,7 @@ def main():
     load(trans_dfs)
 
     # Update config file with last_update
-    cfg['last_update'] = end_date
+    cfg['last_update_square'] = end_date
     with open('../config.yml', 'w') as outfile:
         yaml.dump(cfg, outfile, default_flow_style=False)
 
