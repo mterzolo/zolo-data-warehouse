@@ -29,7 +29,7 @@ DROP TABLE IF EXISTS shopify_trans_details;
 
 CREATE TABLE shopify_trans_details(
     order_id text,
-    sku text,
+    shopify_id text,
     quantity int,
     price float
 

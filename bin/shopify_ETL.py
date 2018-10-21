@@ -48,7 +48,7 @@ def main():
     # Run ETL
     orders = extract(start_date, end_date)
     orders_dfs = transform(orders)
-    #load(orders_dfs)
+    load(orders_dfs)
 
     # Update config file with last_update
     cfg['last_update_shopify'] = end_date
@@ -110,9 +110,8 @@ def transform(orders):
             # Pull out relevant data points
             order_id = order['id']
             created_at = order['created_at']
-            product_name = [i['title'] for i in order['line_items']]
             quantity = [int(i['quantity']) for i in order['line_items']]
-            sku = [i['sku'] for i in order['line_items']]
+            shopify_id = [i['id'] for i in order['line_items']]
             price = [float(i['price']) for i in order['line_items']]
             try:
                 shipping_price = [float(i['price']) for i in order['shipping_lines']][0]
@@ -123,9 +122,8 @@ def transform(orders):
             temp_df = pd.DataFrame({
                 'order_id': order_id,
                 'created_at': created_at,
-                'product_name': product_name,
                 'quantity': quantity,
-                'sku': sku,
+                'shopify_id': shopify_id,
                 'price': price,
                 'shipping_price': shipping_price
             })
@@ -139,9 +137,8 @@ def transform(orders):
 
             'order_id',
             'created_at',
-            'product_name',
             'quantity',
-            'sku',
+            'shopify_id',
             'price',
             'shipping_price'
         ])
@@ -153,15 +150,13 @@ def transform(orders):
     # Calc the total dollars for the line item
     data['subtotal'] = data['quantity'] * data['price']
 
-    print(data['sku'].value_counts())
-
     # Create the shopify transactions table
     agg_dict = {
         'shipping_price': 'min',
         'subtotal': 'sum',
     }
 
-    shopify_trans = data.groupby(['order_id', 'created_at', 'sku']).agg(agg_dict).reset_index()
+    shopify_trans = data.groupby(['order_id', 'created_at']).agg(agg_dict).reset_index()
     shopify_trans['total_dollars'] = shopify_trans['subtotal'] + shopify_trans['shipping_price']
 
     shopify_trans = shopify_trans.loc[:, [
@@ -177,7 +172,7 @@ def transform(orders):
     shopify_details = data.loc[:, [
 
         'order_id',
-        'sku',
+        'shopify_id',
         'quantity',
         'price'
     ]]
@@ -206,6 +201,8 @@ def load(orders_df):
     orders_df[0].to_sql('shopify_trans_details', con=engine, if_exists='append', index=False)
     orders_df[1].to_sql('shopify_trans', con=engine, if_exists='append', index=False)
 
+    logger.info('Loading {} records to square_trans_details'.format(len(orders_df[0])))
+    logger.info('Loading {} records to square_trans'.format(len(orders_df[1])))
     logger.info('Data load completed successfully')
 
 
