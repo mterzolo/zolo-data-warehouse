@@ -29,7 +29,7 @@ DROP TABLE IF EXISTS square_trans_details;
 
 CREATE TABLE square_trans_details(
     payment_id text,
-    sku text,
+    square_id text,
     quantity int,
     dollars float,
     modifiers text,

@@ -123,7 +123,7 @@ def transform(payments):
             created_at = batch_dict['created_at']
             device_name = batch_dict['device']['name']
             quantity = [i['quantity'] for i in batch_dict['itemizations']]
-            sku = [i['item_detail']['sku'] for i in batch_dict['itemizations']]
+            square_id = [i['item_detail']['item_id'] for i in batch_dict['itemizations']]
             dollars = [int(i['total_money']['amount']) / 100 for i in batch_dict['itemizations']]
             variation_name =[i['item_variation_name'] for i in batch_dict['itemizations']]
 
@@ -144,7 +144,7 @@ def transform(payments):
                 'created_at': created_at,
                 'device_name': device_name,
                 'quantity': quantity,
-                'sku': sku,
+                'square_id': square_id,
                 'dollars': dollars,
                 'tendered_cash': tendered_cash,
                 'returned_cash': returned_cash,
@@ -162,7 +162,7 @@ def transform(payments):
             'created_at',
             'device_name',
             'quantity',
-            'sku',
+            'square_id',
             'dollars',
             'tendered_cash',
             'returned_cash',
@@ -191,7 +191,7 @@ def transform(payments):
     # Create transactions details table
     data_trans_details = data.loc[:, [
        'payment_id',
-       'sku',
+       'square_id',
        'quantity',
        'dollars',
        'modifiers',
@@ -231,6 +231,8 @@ def load(trans_dfs):
     trans_dfs[0].to_sql('square_trans_details', con=engine, if_exists='append', index=False)
     trans_dfs[1].to_sql('square_trans', con=engine, if_exists='append', index=False)
 
+    logger.info('Loading {} records to square_trans_details'.format(len(trans_dfs[0])))
+    logger.info('Loading {} records to square_trans'.format(len(trans_dfs[1])))
     logger.info('Data load completed successfully')
 
 
