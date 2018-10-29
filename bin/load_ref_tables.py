@@ -20,12 +20,16 @@ cur.execute("""
     DROP TABLE IF EXISTS items;
     
     CREATE TABLE items(
-        sku text,
-        item_name text,
+        product_name text,
+        variant_name text,
+        zolo_id int,
+        square_id text,
+        quickbooks_id text,
+        shopify_id text,
         category_name text,
-        profile_id int,
+        form text,
         weight float,
-        form text
+        profile_id int
         );
         
     DROP TABLE IF EXISTS coffee_profiles;
@@ -60,5 +64,5 @@ engine = create_engine('postgresql://{}:{}@{}/{}'.format(cfg['db_user_name'],
                                                          cfg['db_name']))
 
 # Load to database
-items.to_sql('square_items', con=engine, if_exists='replace', index=False)
+items.to_sql('items', con=engine, if_exists='replace', index=False)
 coffee_profiles.to_sql('coffee_profiles', con=engine, if_exists='replace', index=False)

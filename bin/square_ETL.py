@@ -25,15 +25,15 @@ start_date = cfg['last_update_square']
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# create a file handler
+# Create a file handler
 handler = logging.FileHandler('../logs/square_{}.log'.format(end_date))
 handler.setLevel(logging.INFO)
 
-# create a logging format
+# Create a logging format
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 
-# add the handlers to the logger
+# Add the handlers to the logger
 logger.addHandler(handler)
 
 
@@ -115,6 +115,7 @@ def transform(payments):
     for batch in payments:
 
         for response in batch:
+
             # Convert to dict
             batch_dict = response.to_dict()
 
@@ -123,7 +124,7 @@ def transform(payments):
             created_at = batch_dict['created_at']
             device_name = batch_dict['device']['name']
             quantity = [i['quantity'] for i in batch_dict['itemizations']]
-            square_id = [i['item_detail']['item_id'] for i in batch_dict['itemizations']]
+            square_id = [i['item_detail']['item_variation_id'] for i in batch_dict['itemizations']]
             dollars = [int(i['total_money']['amount']) / 100 for i in batch_dict['itemizations']]
             variation_name =[i['item_variation_name'] for i in batch_dict['itemizations']]
 
