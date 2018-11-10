@@ -55,8 +55,8 @@ cur.execute("""
 conn.commit()
 
 # Load data
-items = pd.read_csv('../data/ref_tables - items.csv')
-coffee_profiles = pd.read_csv('../data/ref_tables - coffee_profiles.csv')
+items = pd.read_csv('../../data/ref_tables - items.csv')
+coffee_profiles = pd.read_csv('../../data/ref_tables - coffee_profiles.csv')
 
 # Create connection engine
 engine = create_engine('postgresql://{}:{}@{}/{}'.format(cfg['db_user_name'],
