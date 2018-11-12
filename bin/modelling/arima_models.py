@@ -18,7 +18,6 @@ with open("../../config.yml", 'r') as infile:
 today = dt.datetime.today()
 forecast_start = today - dt.timedelta(days=today.weekday())
 forecast_start = forecast_start.date()
-#forecast_start = dt.date(2018, 9, 24)
 
 # Create logger
 logger = logging.getLogger(__name__)
@@ -76,11 +75,10 @@ def extract():
     query = """
 
     with square_weekly as (
-    select 
+    select
+        p.profile_name,
         date_trunc('week', sqt.created_at) as week_date, 
-        (i.weight * sqdt.quantity) as weight, 
-        p.profile_name, 
-        i.form
+        (i.weight * sqdt.quantity) as total_weight
     from square_trans as sqt
     left join square_trans_details as sqdt
     on sqt.payment_id = sqdt.payment_id
@@ -88,16 +86,13 @@ def extract():
     on sqdt.square_id = i.square_id
     inner join coffee_profiles as p
     on i.profile_id = p.profile_id
-    where created_at > '2017-10-14' and 
-    created_at < '{}' and
-    p.active = 1),
+    where p.active = 1),
 
     shopify_weekly as (
     select 
+        p.profile_name,
         date_trunc('week', sht.created_at) as week_date, 
-        (i.weight * shdt.quantity) as weight, 
-        p.profile_name, 
-        i.form
+        (i.weight * shdt.quantity) as total_weight
     from shopify_trans as sht
     left join shopify_trans_details as shdt
     on sht.order_id = shdt.order_id
@@ -105,17 +100,40 @@ def extract():
     on shdt.shopify_id = cast(i.shopify_id as text)
     inner join coffee_profiles as p
     on i.profile_id = p.profile_id
-    where created_at > '2017-10-14' and 
-    created_at < '{}' and
-    p.active = 1)
+    where p.active = 1),
+    
+    quickbooks_weekly as (
+    select 
+        p.profile_name,
+        date_trunc('week', qbt.created_at) as week_date, 
+        (i.weight * qbdt.quantity) as total_weight
+    from qb_trans as qbt
+    left join qb_trans_details as qbdt
+    on qbt.payment_id = qbdt.payment_id
+    left join items as i
+    on qbdt.quickbooks_id = cast(i.quickbooks_id as text)
+    inner join coffee_profiles as p
+    on i.profile_id = p.profile_id
+    where p.active = 1)
 
-    select profile_name, form, week_date, sum(weight) as weight
-    from (select *
+    select
+        u2.profile_name,
+        u2.week_date, 
+        sum(u2.total_weight) as weight
+    from
+    (select * 
+    from
+    (select *
     from shopify_weekly
     union all
-    select * from square_weekly) as unioned
-    group by profile_name, form, week_date
-    order by profile_name, form, week_date
+    select * 
+    from square_weekly) as u1
+    union all 
+    select * 
+    from quickbooks_weekly
+    ) as u2
+    group by u2.profile_name, u2.week_date
+    order by u2.profile_name, u2.week_date
 
     """.format(str(forecast_start), str(forecast_start))
     data = pd.read_sql_query(query, con=engine)
@@ -135,14 +153,13 @@ def transform(data):
 
     # Get relevant temporally relevant data
     data = data[data['week_date'] <= forecast_start]
-    data['name_form'] = data['profile_name'] + '_' + data['form']
 
     # Exclude profile/forms with low counts
-    data['week_count'] = data['week_date'].groupby(data['name_form']).transform('count')
+    data['week_count'] = data['week_date'].groupby(data['profile_name']).transform('count')
     data = data[data['week_count'] > 5]
 
     # Aggregate data
-    model_data = data.groupby(['week_date', 'name_form']).sum().reset_index()
+    model_data = data.groupby(['week_date', 'profile_name']).sum().reset_index()
 
     logger.info('Data transformation completed successfully')
 
@@ -163,7 +180,7 @@ def model(model_data, p_values, d_values, q_values):
 
     # Create framework for final dataframe
     meta_df = pd.DataFrame(columns=[
-        'name_form',
+        'profile_name',
         'best_config',
         'mse',
         'prediction',
@@ -171,10 +188,10 @@ def model(model_data, p_values, d_values, q_values):
     ])
 
     # For each profile/form combo fit model
-    for zolo_id in model_data['name_form'].sort_values().unique():
+    for zolo_id in model_data['profile_name'].sort_values().unique():
 
         # Get data for profile/form
-        temp_data = model_data[model_data['name_form'] == zolo_id]
+        temp_data = model_data[model_data['profile_name'] == zolo_id]
 
         # Grid search model params
         best_cfg, mse, best_model = lib.evaluate_models(temp_data['weight'].values, p_values, d_values, q_values)
@@ -182,7 +199,7 @@ def model(model_data, p_values, d_values, q_values):
         # Store meta information about models
         forecast = best_model.forecast()
         temp_df = pd.DataFrame({
-            'name_form': [zolo_id],
+            'profile_name': [zolo_id],
             'best_config': [best_cfg],
             'mse': [mse],
             'prediction': forecast[0],
@@ -198,11 +215,6 @@ def model(model_data, p_values, d_values, q_values):
 
     # Add datetime field
     meta_df['forecast_start'] = forecast_start
-
-    # Split profile name and form columns
-    meta_df['profile_name'] = meta_df['name_form'].str.split('_', expand=True)[0]
-    meta_df['form'] = meta_df['name_form'].str.split('_', expand=True)[1]
-    meta_df.drop('name_form', axis=1, inplace=True)
 
     return meta_df
 

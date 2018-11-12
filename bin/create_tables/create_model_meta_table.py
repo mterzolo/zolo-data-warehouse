@@ -19,7 +19,6 @@ DROP TABLE IF EXISTS model_meta;
 CREATE TABLE model_meta(
 
     profile_name text,
-    form text,
     best_config text,
     mse float,
     prediction float,
