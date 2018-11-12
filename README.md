@@ -14,14 +14,6 @@ Scripts for creating and maintaining a data warehouse for a coffee roasting comp
 4) Hook up self service analytics tools and create reports
 
 
-# TODO
-* Define items table and allocate SKU's that work across square, quickbooks, and shopify
-* Connect to quickbooks API
-* Load historical data to database
-* Create load scripts for daily refreshes of the data
-* Set up airflow to run ETL scripts
-* Define metrics / create dashboards
-
 ## Projects that will use this data
 
 ### Quittin Time
