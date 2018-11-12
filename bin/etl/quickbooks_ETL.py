@@ -26,6 +26,9 @@ with open('../../session_manager.pkl', 'rb') as file:
 end_date = dt.datetime.utcnow().isoformat()
 start_date = cfg['last_update_quickbooks']
 
+end_date = dt.datetime(2015, 1, 1).isoformat()
+start_date = dt.datetime(2014, 1, 1).isoformat()
+
 # Create logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -72,7 +75,7 @@ def extract(start_date, end_date):
     logger.info('Begin Extract')
 
     # Refresh token
-    session_manager.get_new_access_tokens(cfg['quickbooks_refresh_token'])
+    session_manager.refresh_access_tokens(cfg['quickbooks_refresh_token'])
 
     # Create client
     client = QuickBooks(
