@@ -1,4 +1,6 @@
 from statsmodels.tsa.arima_model import ARIMA
+from statsmodels.tsa.api import Holt
+from statsmodels.tsa.api import SimpleExpSmoothing
 from sklearn.metrics import mean_squared_error
 
 
@@ -20,6 +22,66 @@ def evaluate_arima_model(X, arima_order):
         # Fit model
         model = ARIMA(history, order=arima_order)
         model_fit = model.fit(disp=0)
+
+        # Forecast
+        yhat = model_fit.forecast()[0]
+
+        # Store prediction and move forward one time step
+        predictions.append(yhat)
+        history.append(test[t])
+
+    # calculate out of sample error
+    mse = mean_squared_error(test, predictions)
+    return mse, model_fit
+
+
+def evaluate_holt_model(X):
+    """
+    Evaluate a Holt Model
+    :param X: list or series containing all historical data
+    :return: mse (error metric) and the fitted model
+    """
+    # Prepare training dataset
+    train_size = int(len(X) * 0.75)
+    train, test = X[0:train_size], X[train_size:]
+    history = [x for x in train]
+
+    # Make predictions
+    predictions = list()
+    for t in range(len(test)):
+        # Fit model
+        model = Holt(history)
+        model_fit = model.fit()
+
+        # Forecast
+        yhat = model_fit.forecast()[0]
+
+        # Store prediction and move forward one time step
+        predictions.append(yhat)
+        history.append(test[t])
+
+    # calculate out of sample error
+    mse = mean_squared_error(test, predictions)
+    return mse, model_fit
+
+
+def evaluate_simp_avg_model(X):
+    """
+    Evaluate a Simple Expontential Smoothing Model
+    :param X: list or series containing all historical data
+    :return: mse (error metric) and the fitted model
+    """
+    # Prepare training dataset
+    train_size = int(len(X) * 0.75)
+    train, test = X[0:train_size], X[train_size:]
+    history = [x for x in train]
+
+    # Make predictions
+    predictions = list()
+    for t in range(len(test)):
+        # Fit model
+        model = SimpleExpSmoothing(history)
+        model_fit = model.fit(smoothing_level=0.6, optimized=False)
 
         # Forecast
         yhat = model_fit.forecast()[0]
