@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # Create a file handler
-handler = logging.FileHandler('../../logs/models/{}.log'.format(forecast_start))
+handler = logging.FileHandler('../../logs/models/arima_{}.log'.format(forecast_start))
 handler.setLevel(logging.INFO)
 
 # Create a logging format
@@ -86,7 +86,8 @@ def extract():
     on sqdt.square_id = i.square_id
     inner join coffee_profiles as p
     on i.profile_id = p.profile_id
-    where p.active = 1),
+    where p.active = 1 and 
+    created_at > '2017-10-1'),
 
     shopify_weekly as (
     select 
@@ -100,7 +101,8 @@ def extract():
     on shdt.shopify_id = cast(i.shopify_id as text)
     inner join coffee_profiles as p
     on i.profile_id = p.profile_id
-    where p.active = 1),
+    where p.active = 1 and 
+    created_at > '2017-10-1'),
     
     quickbooks_weekly as (
     select 
@@ -114,7 +116,8 @@ def extract():
     on qbdt.quickbooks_id = cast(i.quickbooks_id as text)
     inner join coffee_profiles as p
     on i.profile_id = p.profile_id
-    where p.active = 1)
+    where p.active = 1 and 
+    created_at > '2017-10-1')
 
     select
         u2.profile_name,
@@ -152,7 +155,7 @@ def transform(data):
     logger.info('Begin data transformation')
 
     # Get relevant temporally relevant data
-    data = data[data['week_date'] <= forecast_start]
+    data = data[data['week_date'] < forecast_start]
 
     # Exclude profile/forms with low counts
     data['week_count'] = data['week_date'].groupby(data['profile_name']).transform('count')
@@ -221,7 +224,7 @@ def model(model_data, p_values, d_values, q_values):
 
 def load(meta_df):
     """
-    Take the dataframe with diagnostic information and preditions and load to db
+    Take the dataframe with diagnostic information and predictions and load to db
     :param meta_df: dataframe
     :return:
     """
