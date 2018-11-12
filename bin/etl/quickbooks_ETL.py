@@ -26,9 +26,6 @@ with open('../../session_manager.pkl', 'rb') as file:
 end_date = dt.datetime.utcnow().isoformat()
 start_date = cfg['last_update_quickbooks']
 
-end_date = dt.datetime(2015, 1, 1).isoformat()
-start_date = dt.datetime(2014, 1, 1).isoformat()
-
 # Create logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -166,13 +163,30 @@ def transform(orders):
                                     'price': price})
             order_dfs.append(temp_df)
 
-    invoices = pd.concat(order_dfs)
+    try:
+        invoices = pd.concat(order_dfs)
+    except ValueError:
+        invoices = pd.DataFrame(columns=[
+            'payment_id',
+            'created_at',
+            'customer_id',
+            'quickbooks_id',
+            'quantity',
+            'price'
+        ])
 
     # Calc total dollars for the invoice
     invoices['dollars'] = invoices['quantity'] * invoices['price']
 
+    # Create aggregation instructions
+    agg_dict = {
+        'quantity':'sum',
+        'price':'sum',
+        'dollars':'sum'
+    }
+
     # Agg lines items to get invoice summary
-    qb_trans = invoices.groupby(['payment_id', 'created_at', 'customer_id']).sum().reset_index()
+    qb_trans = invoices.groupby(['payment_id', 'created_at', 'customer_id']).agg(agg_dict).reset_index()
 
     qb_trans = qb_trans.loc[:, [
 
