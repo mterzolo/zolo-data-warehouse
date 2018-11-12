@@ -18,7 +18,7 @@ with open("../../config.yml", 'r') as infile:
 today = dt.datetime.today()
 forecast_start = today - dt.timedelta(days=today.weekday())
 forecast_start = forecast_start.date()
-forecast_start = dt.date(2018, 9, 24)
+#forecast_start = dt.date(2018, 9, 24)
 
 # Create logger
 logger = logging.getLogger(__name__)
@@ -76,7 +76,11 @@ def extract():
     query = """
 
     with square_weekly as (
-    select date_trunc('week', sqt.created_at) as week_date, i.weight, p.profile_name, i.form
+    select 
+        date_trunc('week', sqt.created_at) as week_date, 
+        (i.weight * sqdt.quantity) as weight, 
+        p.profile_name, 
+        i.form
     from square_trans as sqt
     left join square_trans_details as sqdt
     on sqt.payment_id = sqdt.payment_id
@@ -89,7 +93,11 @@ def extract():
     p.active = 1),
 
     shopify_weekly as (
-    select date_trunc('week', sht.created_at) as week_date, i.weight, p.profile_name, i.form
+    select 
+        date_trunc('week', sht.created_at) as week_date, 
+        (i.weight * shdt.quantity) as weight, 
+        p.profile_name, 
+        i.form
     from shopify_trans as sht
     left join shopify_trans_details as shdt
     on sht.order_id = shdt.order_id
