@@ -56,7 +56,7 @@ def main():
     load(orders_dfs)
 
     # Update config file with last_update
-    cfg['last_update_shopify'] = end_date
+    cfg['last_update_quickbooks'] = end_date
     with open('../../config.yml', 'w') as outfile:
         yaml.dump(cfg, outfile, default_flow_style=False)
 
