@@ -5,6 +5,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 import datetime as dt
 import numpy as np
+import pickle
 
 from quickbooks import QuickBooks
 from quickbooks import Oauth2SessionManager
@@ -16,6 +17,10 @@ warnings.filterwarnings("ignore")
 # Load config file
 with open("../../config.yml", 'r') as infile:
     cfg = yaml.load(infile)
+
+# Load session manager
+with open('../../session_manager.pkl', 'rb') as file:
+    session_manager = pickle.load(file)
 
 # Get start and end dates
 end_date = dt.datetime.utcnow().isoformat()
@@ -52,7 +57,7 @@ def main():
 
     # Update config file with last_update
     cfg['last_update_shopify'] = end_date
-    with open('../config.yml', 'w') as outfile:
+    with open('../../config.yml', 'w') as outfile:
         yaml.dump(cfg, outfile, default_flow_style=False)
 
 
@@ -65,14 +70,6 @@ def extract(start_date, end_date):
     """
 
     logger.info('Begin Extract')
-
-    # Create session
-    session_manager = Oauth2SessionManager(
-        client_id=cfg['quickbooks_client_id'],
-        client_secret=cfg['quickbooks_client_secret'],
-        base_url='https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl',
-        refresh_token=cfg['quickbooks_refresh_token']
-    )
 
     # Refresh token
     session_manager.get_new_access_tokens(cfg['quickbooks_refresh_token'])
@@ -89,18 +86,21 @@ def extract(start_date, end_date):
     # Get total number of reports
     response = client.query("""
                             select count(*) from Invoice 
-                            where TxnDate > '{}' and TxnDate < '{}
-                            '""".format(start_date, end_date))
+                            where TxnDate > '{}' and TxnDate < '{}'
+                            """.format(start_date, end_date))
     num_invoices = response['QueryResponse']['totalCount']
 
     orders = []
 
     for page in range(round(num_invoices / 25)):
         response = client.query("""
-                                select * from Invoice 
-                                where TxnDate > '{}' and TxnDate < '{}' 
-                                STARTPOSITION {} MAXRESULTS {}
-                                """.format(start_date, end_date, (page * 25 + 1), 25))
+                        select * from Invoice 
+                        where TxnDate > '{}' and TxnDate < '{}'
+                        STARTPOSITION {} MAXRESULTS {}
+                        """.format(start_date,
+                                   end_date,
+                                   (page * 25 + 1),
+                                   25))
         orders.append(response)
 
     logger.info('Data Extraction completed successfully')
@@ -118,7 +118,6 @@ def transform(orders):
     logger.info('Begin data transformation')
 
     order_dfs = []
-    all_keys = []
 
     for batch in orders:
 
@@ -158,7 +157,7 @@ def transform(orders):
 
             temp_df = pd.DataFrame({'payment_id': payment_id,
                                     'created_at': created_at,
-                                    'customer_id': value,
+                                    'customer_id': customer_id,
                                     'quickbooks_id': quickbooks_id,
                                     'quantity': quantity,
                                     'price': price})

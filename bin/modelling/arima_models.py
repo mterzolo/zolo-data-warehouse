@@ -18,6 +18,7 @@ with open("../../config.yml", 'r') as infile:
 today = dt.datetime.today()
 forecast_start = today - dt.timedelta(days=today.weekday())
 forecast_start = forecast_start.date()
+forecast_start = dt.date(2018, 9, 24)
 
 # Create logger
 logger = logging.getLogger(__name__)
@@ -56,7 +57,7 @@ def main():
 
     # Update config file with last_update
     cfg['last_model_run'] = forecast_start
-    with open('../config.yml', 'w') as outfile:
+    with open('../../config.yml', 'w') as outfile:
         yaml.dump(cfg, outfile, default_flow_style=False)
 
 

@@ -29,6 +29,7 @@ CREATE TABLE qb_trans_details(
     payment_id text,
     quickbooks_id text,
     quantity int,
+    price float,
     dollars float
 );
 """)

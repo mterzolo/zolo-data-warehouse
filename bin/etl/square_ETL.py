@@ -52,7 +52,7 @@ def main():
 
     # Update config file with last_update
     cfg['last_update_square'] = end_date
-    with open('../config.yml', 'w') as outfile:
+    with open('../../config.yml', 'w') as outfile:
         yaml.dump(cfg, outfile, default_flow_style=False)
 
 
