@@ -153,7 +153,7 @@ def transform(data):
 
     # Exclude profile/forms with low counts
     data['week_count'] = data['week_date'].groupby(data['profile_name']).transform('count')
-    data = data[data['week_count'] > 8]
+    data = data[data['week_count'] > 10]
 
     # Aggregate data
     model_data = data.groupby(['week_date', 'profile_name']).sum().reset_index()
