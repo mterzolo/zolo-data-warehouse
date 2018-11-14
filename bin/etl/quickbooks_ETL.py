@@ -5,7 +5,6 @@ import pandas as pd
 from sqlalchemy import create_engine
 import datetime as dt
 import numpy as np
-import pickle
 
 from quickbooks import QuickBooks
 from quickbooks import Oauth2SessionManager
@@ -17,10 +16,6 @@ warnings.filterwarnings("ignore")
 # Load config file
 with open("../../config.yml", 'r') as infile:
     cfg = yaml.load(infile)
-
-# Load session manager
-with open('../../session_manager.pkl', 'rb') as file:
-    session_manager = pickle.load(file)
 
 # Get start and end dates
 end_date = dt.datetime.utcnow().isoformat()
@@ -71,8 +66,17 @@ def extract(start_date, end_date):
 
     logger.info('Begin Extract')
 
-    # Refresh token
-    session_manager.refresh_access_tokens(cfg['quickbooks_refresh_token'])
+    # Create session
+    session_manager = Oauth2SessionManager(
+        client_id=cfg['quickbooks_client_id'],
+        client_secret=cfg['quickbooks_client_secret'],
+        access_token=cfg['quickbooks_access_token'],
+        base_url='https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl'
+    )
+
+    # Refresh token and save to config
+    refresh = session_manager.refresh_access_tokens(cfg['quickbooks_refresh_token'], return_result=True)
+    cfg['quickbooks_access_token'] = refresh['access_token']
 
     # Create client
     client = QuickBooks(
