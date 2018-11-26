@@ -77,6 +77,7 @@ def extract(start_date, end_date):
     # Refresh token and save to config
     refresh = session_manager.refresh_access_tokens(cfg['quickbooks_refresh_token'], return_result=True)
     cfg['quickbooks_access_token'] = refresh['access_token']
+    cfg['quickbooks_refresh_token'] = refresh['refresh_token']
 
     # Create client
     client = QuickBooks(
