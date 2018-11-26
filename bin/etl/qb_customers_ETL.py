@@ -46,8 +46,8 @@ def main():
 
     # Run ETL
     customers = extract()
-    customer_df = transform(customers)
-    load(customer_df)
+    customer_table = transform(customers)
+    load(customer_table)
 
     # Update config file with last_update
     cfg['last_update_qb_customers'] = today
@@ -133,7 +133,7 @@ def transform(customers):
             temp_df = pd.DataFrame({'customer_id': customer_id,
                                     'customer_name': customer_name,
                                     'phone_number': phone_number,
-                                    'address': address
+                                    'address': address,
                                     'city': city,
                                     'state': state,
                                     'zipcode': zipcode,
@@ -170,10 +170,13 @@ def load(customers_table):
     CREATE TABLE qb_customers(
         customer_id text,
         customer_name text,
-        first_transaction timestamp,
         phone_number text,
         address text,
-        type text);
+        city text,
+        state text,
+        zipcode text,
+        create_date timestamp,
+        
     );
     """)
 
